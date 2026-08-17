@@ -1,0 +1,36 @@
+name: Test Powerpipe Setup action
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  install-latest-powerpipe:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+    - name: Setup Powerpipe
+      uses: ./ # This points to your local action
+
+    - name: Verify Powerpipe Installation
+      run: |
+        powerpipe -v
+
+  install-powerpipe-version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+    - name: Setup Powerpipe
+      uses: ./ # This points to your local action
+      with:
+        powerpipe-version: 0.1.2
+
+    - name: Verify Powerpipe Installation
+      run: |
+        powerpipe -v

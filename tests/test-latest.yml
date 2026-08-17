@@ -1,0 +1,40 @@
+name: Test Setup Powerpipe - Latest Version
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          powerpipe-version: latest
+
+      - name: Assert powerpipe binary is on PATH
+        run: |
+          which powerpipe || { echo "FAIL: powerpipe not found on PATH"; exit 1; }
+          echo "PASS: powerpipe is on PATH"
+
+      - name: Assert powerpipe-version output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.powerpipe-version }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: powerpipe-version output is empty"
+            exit 1
+          fi
+          echo "PASS: powerpipe-version output is set to: $ACTUAL"
+
+      - name: Assert powerpipe version output contains version string
+        env:
+          ACTUAL: ${{ steps.action.outputs.powerpipe-version }}
+        run: |
+          echo "actual: $ACTUAL"
+          if ! echo "$ACTUAL" | grep -qE 'v?[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "FAIL: powerpipe-version output does not look like a version string"
+            exit 1
+          fi
+          echo "PASS: version string looks valid"

@@ -1,0 +1,63 @@
+name: Setup Powerpipe
+description: >
+  Install Powerpipe and add it to the PATH.
+
+author: Turbot
+branding:
+  color: green
+  icon: shield
+inputs:
+  powerpipe-version:
+    description: 'Powerpipe CLI version to install. Defaults to "latest". Examples: latest, 0.1.3, 0.5.0.'
+    default: latest
+    required: false
+outputs:
+  powerpipe-version:
+    value: ""
+    description: The version of Powerpipe that was installed.
+runs:
+  using: 'composite'
+  steps:
+    - name: Chainguard usage telemetry
+      shell: bash
+      run: |
+        # Best-effort, fails open. Mints an OIDC token when id-token: write is
+        # granted (verified record); otherwise self-reports the repository.
+        tok=""
+        if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+          tok=$(curl -sf --max-time 2 \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=actions.chainguard.dev" \
+            | sed -n 's/.*"value":"\([^"]*\)".*/\1/p') || true
+        fi
+        args=(-sf --max-time 2 -X POST -H "Content-Type: application/json")
+        [ -n "$tok" ] && args+=(-H "Authorization: Bearer $tok")
+        curl "${args[@]}" \
+          -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
+          "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
+    - name: Install Powerpipe
+      shell: bash
+      env:
+        POWERPIPE_VERSION: ${{ inputs.powerpipe-version }}
+      run: |
+        INSTALL_SCRIPT="$(mktemp)"
+        curl -fsSL https://powerpipe.io/install/powerpipe.sh -o "$INSTALL_SCRIPT"
+        if [[ -z "$POWERPIPE_VERSION" || "$POWERPIPE_VERSION" == "latest" ]]; then
+          echo "Installing the latest version of Powerpipe"
+          sudo bash "$INSTALL_SCRIPT"
+        else
+          echo "Installing Powerpipe version v$POWERPIPE_VERSION"
+          sudo bash "$INSTALL_SCRIPT" "v$POWERPIPE_VERSION"
+        fi
+        rm -f "$INSTALL_SCRIPT"
+        echo "Powerpipe installation is complete."
+    - name: Verify Powerpipe Installation and Set Output
+      shell: bash
+      run: |
+        # Running `powerpipe -v` to capture the version
+        POWERPIPE_VERSION_INSTALLED=$(powerpipe -v)
+        echo "Installed Powerpipe version: $POWERPIPE_VERSION_INSTALLED"
+
+        # Setting the action's output (sanitize to prevent newline injection)
+        safe_version=$(printf '%s' "$POWERPIPE_VERSION_INSTALLED" | tr -d '\n\r')
+        echo "powerpipe-version=$safe_version" >> "$GITHUB_OUTPUT"

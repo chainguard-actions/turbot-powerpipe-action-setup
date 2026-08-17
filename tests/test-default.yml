@@ -1,0 +1,40 @@
+name: Test Default Powerpipe Installation (no version input)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        # No inputs provided — should default to latest
+
+      - name: Assert powerpipe-version output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.powerpipe-version }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: powerpipe-version output is empty when using defaults"
+            exit 1
+          fi
+          echo "PASS: powerpipe-version output is set to: $ACTUAL"
+
+      - name: Assert powerpipe binary is on PATH
+        run: |
+          if ! command -v powerpipe &>/dev/null; then
+            echo "FAIL: powerpipe binary not found on PATH"
+            exit 1
+          fi
+          echo "PASS: powerpipe is available at $(command -v powerpipe)"
+
+      - name: Assert powerpipe runs successfully
+        run: |
+          powerpipe -v
+          if [ $? -ne 0 ]; then
+            echo "FAIL: powerpipe -v returned non-zero exit code"
+            exit 1
+          fi
+          echo "PASS: powerpipe -v ran successfully"
